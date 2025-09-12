@@ -31,8 +31,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and websockets
-  if (request.method !== 'GET' || url.protocol === 'ws:' || url.protocol === 'wss:') {
+  // Skip non-GET, websockets, and unsupported schemes
+  if (request.method !== 'GET' || 
+      url.protocol === 'ws:' || 
+      url.protocol === 'wss:' ||
+      url.protocol === 'chrome-extension:' ||
+      url.protocol === 'moz-extension:' ||
+      url.protocol === 'safari-extension:') {
     return;
   }
 
@@ -40,8 +45,17 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const respClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, respClone));
+          // Only cache successful responses
+          if (response.status === 200) {
+            const respClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              try {
+                cache.put(request, respClone);
+              } catch (error) {
+                console.warn('Failed to cache API response:', error);
+              }
+            });
+          }
           return response;
         })
         .catch(() => caches.match(request))
@@ -55,8 +69,17 @@ self.addEventListener('fetch', (event) => {
         cached ||
         fetch(request)
           .then((response) => {
-            const respClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, respClone));
+            // Only cache successful responses
+            if (response.status === 200) {
+              const respClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                try {
+                  cache.put(request, respClone);
+                } catch (error) {
+                  console.warn('Failed to cache response:', error);
+                }
+              });
+            }
             return response;
           })
           .catch(() => caches.match('/index.html'))

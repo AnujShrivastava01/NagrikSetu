@@ -7,10 +7,14 @@ import Index from "./pages/Index";
 import { AuthProvider } from "./hooks/useAuth";
 import ChatBox from "./components/ChatBox";
 import { BrowserRouter as Router } from "react-router-dom";
+import { useSmoothScroll } from "./hooks/useSmoothScroll";
 
 const queryClient = new QueryClient();
 
 function App() {
+  // Initialize smooth scrolling for the entire app
+  useSmoothScroll();
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>

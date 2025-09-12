@@ -43,7 +43,7 @@ import {
   WiStrongWind,
 } from "react-icons/wi";
 import { Dialog } from "@headlessui/react";
-import { canInstall, promptInstall, isStandalone, onInstallAvailabilityChange } from "@/utils/pwa";
+// PWA functionality moved to Navigation component for centralized handling
 
 interface AdminReport {
   _id: string;
@@ -223,42 +223,8 @@ const AdminDashboard = () => {
     }
   }, [user, authRole, toast]);
 
-  // Show one-time PWA install alert for first-time login
-  useEffect(() => {
-    if (!user || authRole !== "admin") return;
-    const shownKey = `install_prompt_shown_${user._id || "anon"}`;
-    const alreadyShown = localStorage.getItem(shownKey) === "true";
-
-    const maybePrompt = async () => {
-      if (alreadyShown) return;
-      if (isStandalone()) return; // already installed / standalone
-      if (!canInstall()) return; // install prompt not available yet
-
-      localStorage.setItem(shownKey, "true");
-      const proceed = window.confirm(
-        "Install NagrikSetu for faster access? You can use it offline and from your home screen."
-      );
-      if (proceed) {
-        const accepted = await promptInstall();
-        if (accepted) {
-          toast({ title: "Installed", description: "App installed successfully." });
-        } else {
-          toast({ title: "Install dismissed", description: "You can install later from your browser menu." });
-        }
-      } else {
-        toast({ title: "Tip", description: "You can install later from your browser menu." });
-      }
-    };
-
-    // Try immediately
-    maybePrompt();
-    // Also subscribe to future availability changes within this session
-    const off = onInstallAvailabilityChange((available) => {
-      if (available) maybePrompt();
-    });
-    return () => off();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authRole]);
+  // PWA install prompt is now handled centrally in Navigation component
+  // This ensures consistent behavior across the app
 
   useEffect(() => {
     const fetchAdminData = async () => {

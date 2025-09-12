@@ -8,6 +8,16 @@ All colors MUST be HSL.
 */
 
 @layer base {
+  /* Smooth scrolling support */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Ensure Lenis works properly */
+  body {
+    overflow-x: hidden;
+  }
+  
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;

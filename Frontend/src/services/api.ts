@@ -28,11 +28,19 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      window.location.href = '/';
+      // Token expired or invalid - don't redirect automatically
+      // Let the auth context handle this gracefully
+      console.warn('Authentication failed - token may be expired');
+      
+      // Only clear tokens if this is not a validation request
+      if (!error.config?.url?.includes('/auth/validate')) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        
+        // Dispatch a custom event to notify auth context
+        window.dispatchEvent(new CustomEvent('auth:token-expired'));
+      }
     }
     return Promise.reject(error);
   }

@@ -82,7 +82,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               }
             } catch (error) {
               console.error('❌ Token validation failed:', error);
-              // Token invalid, clear storage
+              // Try to refresh token before giving up
+              const refreshToken = localStorage.getItem('refreshToken');
+              if (refreshToken) {
+                try {
+                  console.log('🔄 Attempting token refresh...');
+                  const refreshResponse = await api.post('/auth/refresh', { refreshToken });
+                  if (refreshResponse.data.success) {
+                    console.log('✅ Token refreshed successfully');
+                    localStorage.setItem('accessToken', refreshResponse.data.data.accessToken);
+                    localStorage.setItem('refreshToken', refreshResponse.data.data.refreshToken);
+                    // Retry validation with new token
+                    const validateResponse = await api.post('/auth/validate', { 
+                      token: refreshResponse.data.data.accessToken 
+                    });
+                    if (validateResponse.data.user) {
+                      const updatedUser = validateResponse.data.user;
+                      setUser(updatedUser);
+                      setRole(updatedUser.role);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      return; // Success, don't clear storage
+                    }
+                  }
+                } catch (refreshError) {
+                  console.error('❌ Token refresh failed:', refreshError);
+                }
+              }
+              
+              // If refresh failed or no refresh token, clear storage gracefully
               localStorage.removeItem('accessToken');
               localStorage.removeItem('refreshToken');
               localStorage.removeItem('user');
@@ -108,16 +135,111 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
+    // Handle token expiration events
+    const handleTokenExpired = () => {
+      console.log('🔔 Token expired event received');
+      setUser(null);
+      setRole(null);
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+    };
+
+    // Handle browser close/refresh events
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Don't clear session data on browser close
+      // This allows users to stay logged in when they return
+      console.log('🔒 Browser closing - preserving session data');
+    };
+
+    // Periodic token refresh to keep session alive
+    const setupTokenRefresh = () => {
+      const refreshInterval = setInterval(async () => {
+        const token = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+        
+        if (token && refreshToken && user) {
+          try {
+            // Check if token is close to expiry (refresh every 6 hours)
+            const tokenData = JSON.parse(atob(token.split('.')[1]));
+            const now = Date.now() / 1000;
+            const timeUntilExpiry = tokenData.exp - now;
+            
+            // If token expires in less than 2 hours, refresh it
+            if (timeUntilExpiry < 7200) {
+              console.log('🔄 Proactively refreshing token...');
+              const response = await api.post('/auth/refresh', { refreshToken });
+              if (response.data.success) {
+                localStorage.setItem('accessToken', response.data.data.accessToken);
+                localStorage.setItem('refreshToken', response.data.data.refreshToken);
+                console.log('✅ Token refreshed proactively');
+              }
+            }
+          } catch (error) {
+            console.warn('Proactive token refresh failed:', error);
+          }
+        }
+      }, 30 * 60 * 1000); // Check every 30 minutes
+      
+      return refreshInterval;
+    };
+
+    // Listen for token expiration events
+    window.addEventListener('auth:token-expired', handleTokenExpired);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     initializeAuth();
+    
+    // Setup token refresh after auth is initialized
+    const refreshInterval = setupTokenRefresh();
+
+    // Cleanup event listeners and intervals
+    return () => {
+      window.removeEventListener('auth:token-expired', handleTokenExpired);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(refreshInterval);
+    };
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
     console.log('🚪 Logging out user');
-    setUser(null);
-    setRole(null);
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    
+    try {
+      // Call backend logout if we have a token
+      const token = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (token && user?._id) {
+        try {
+          await api.post('/auth/logout', { 
+            refreshToken: refreshToken 
+          });
+        } catch (error) {
+          console.warn('Backend logout failed:', error);
+          // Continue with local logout even if backend fails
+        }
+      }
+    } catch (error) {
+      console.warn('Logout error:', error);
+    } finally {
+      // Always clear local state and storage
+      setUser(null);
+      setRole(null);
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
+      // Clear any cached data
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => {
+            if (name.includes('nagriksetu')) {
+              caches.delete(name);
+            }
+          });
+        });
+      }
+    }
   };
 
   return (

@@ -23,6 +23,7 @@ import {
   createFallbackImageUrl,
 } from "@/utils/imageOptimizer";
 import { useToast } from "../hooks/use-toast";
+// PWA imports removed - using browser's native install option
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -41,8 +42,7 @@ const Navigation = () => {
   } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  // PWA install state variables removed - using browser's native install option
 
   // Google login handlers for each role
   const loginAsAdmin = useGoogleLogin({
@@ -347,50 +347,9 @@ const Navigation = () => {
     loadImages();
   }, [user]);
 
-  // PWA install prompt handler
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      const dismissed = localStorage.getItem("pwaPromptDismissed");
-      if (!dismissed) setShowInstallBanner(true);
-      // Fire an alert-style toast once with Install action
-      if (!dismissed) {
-        toast({
-          title: "Install NagrikSetu",
-          description: "Add the app to your home screen for faster access.",
-        });
-      }
-    };
-    window.addEventListener("beforeinstallprompt", handler as EventListener);
-    return () =>
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handler as EventListener
-      );
-  }, []);
+  // PWA install prompt removed - users can use browser's native install option
 
-  const handleInstallClick = async () => {
-    try {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        setShowInstallBanner(false);
-        setDeferredPrompt(null);
-        toast({ title: "App installation started" });
-        localStorage.setItem("pwaPromptDismissed", "true");
-      } else {
-        toast({
-          title: "Install dismissed",
-          description: "You can install later from the browser menu.",
-        });
-        localStorage.setItem("pwaPromptDismissed", "true");
-      }
-    } catch (err) {
-      console.error("Install prompt error:", err);
-    }
-  };
+  // Install click handler removed - using browser's native install option
 
   // Don't render navigation while loading
   if (loading) {
@@ -854,37 +813,7 @@ const Navigation = () => {
           )}
         </div>
       </nav>
-      {showInstallBanner && (
-        <div className="fixed bottom-4 right-4 z-[60] max-w-sm w-[92vw] sm:w-96 shadow-2xl">
-          <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-900 p-4">
-            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-              Install NagrikSetu
-            </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300 mb-3">
-              Add the app to your home screen for faster access and an app-like
-              experience.
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                className="h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={handleInstallClick}
-              >
-                Install
-              </Button>
-              <Button
-                variant="outline"
-                className="h-8 px-3"
-                onClick={() => {
-                  setShowInstallBanner(false);
-                  localStorage.setItem("pwaPromptDismissed", "true");
-                }}
-              >
-                Not now
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* PWA install banner removed - users can use browser's native install option */}
     </>
   );
 };
