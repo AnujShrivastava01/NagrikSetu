@@ -69,8 +69,8 @@
       "form_factor": "wide"
     },
     {
-      "src": "/features/2.png",
-      "sizes": "750x1334",
+      "src": "/mobile_preview.png",
+      "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow"
     }
